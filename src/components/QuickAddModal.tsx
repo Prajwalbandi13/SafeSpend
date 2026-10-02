@@ -4,13 +4,14 @@ import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import { Mic, Send, Check, Pencil } from 'lucide-react';
 import { Modal } from './Modal';
 import { parseTransaction } from '../lib/nlp';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, todayISO } from '../lib/format';
 import type { ParsedTransaction, TransactionType } from '../lib/types';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onConfirm: (t: ParsedTransaction) => void;
+  initialType?: 'expense' | 'income';
 }
 
 const TYPE_LABELS: Record<TransactionType, string> = {
@@ -29,7 +30,7 @@ const TYPE_COLORS: Record<TransactionType, string> = {
   receive: 'text-emerald-600 bg-emerald-50',
 };
 
-export function QuickAddModal({ open, onClose, onConfirm }: Props) {
+export function QuickAddModal({ open, onClose, onConfirm, initialType }: Props) {
   const [input, setInput] = useState('');
   const [parsed, setParsed] = useState<ParsedTransaction | null>(null);
   const [listening, setListening] = useState(false);
@@ -39,14 +40,20 @@ export function QuickAddModal({ open, onClose, onConfirm }: Props) {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
-    if (!open) {
+    if (open && initialType) {
+      setInput('');
+      setParsed({ type: initialType, amount: 0, category: 'Other', description: '', date: todayISO() });
+      setEditing(true);
+      setConfirmed(false);
+      setVoiceError('');
+    } else if (!open) {
       setInput('');
       setParsed(null);
       setConfirmed(false);
       setEditing(false);
       setListening(false);
     }
-  }, [open]);
+  }, [open, initialType]);
 
   const handleParse = (text: string) => {
     if (!text.trim()) {
@@ -143,49 +150,51 @@ export function QuickAddModal({ open, onClose, onConfirm }: Props) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Tell me what happened">
+    <Modal open={open} onClose={onClose} title={initialType ? `Add ${initialType}` : 'Tell me what happened'}>
       {!confirmed ? (
         <div className="space-y-4">
-          {/* Voice button */}
-          <div className="flex flex-col items-center py-4">
-            <button
-              onClick={listening ? stopListening : startListening}
-              className={`flex h-20 w-20 items-center justify-center rounded-full transition-all ${listening
-                ? 'bg-red-500 text-white animate-pulse scale-110'
-                : 'bg-emerald-500 text-white hover:bg-emerald-600 active:scale-105'
-                }`}
-            >
-              <Mic size={32} />
-            </button>
-            <p className="mt-3 text-sm text-gray-500">
-              {listening ? 'Listening...' : 'Tap to speak'}
-            </p>
-            {voiceError && (
-              <p role="alert" className="mt-2 max-w-xs text-center text-xs text-red-600">
-                {voiceError}
+          {!initialType && <>
+            {/* Voice button */}
+            <div className="flex flex-col items-center py-4">
+              <button
+                onClick={listening ? stopListening : startListening}
+                className={`flex h-20 w-20 items-center justify-center rounded-full transition-all ${listening
+                  ? 'bg-red-500 text-white animate-pulse scale-110'
+                  : 'bg-emerald-500 text-white hover:bg-emerald-600 active:scale-105'
+                  }`}
+              >
+                <Mic size={32} />
+              </button>
+              <p className="mt-3 text-sm text-gray-500">
+                {listening ? 'Listening...' : 'Tap to speak'}
               </p>
-            )}
-          </div>
+              {voiceError && (
+                <p role="alert" className="mt-2 max-w-xs text-center text-xs text-red-600">
+                  {voiceError}
+                </p>
+              )}
+            </div>
 
-          {/* Text input */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={e => {
-                setInput(e.target.value);
-                handleParse(e.target.value);
-              }}
-              placeholder="What happened with your money?"
-              className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-            />
-            <button
-              onClick={() => input && handleParse(input)}
-              className="rounded-xl bg-gray-900 px-4 text-white hover:bg-gray-800"
-            >
-              <Send size={18} />
-            </button>
-          </div>
+            {/* Text input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={e => {
+                  setInput(e.target.value);
+                  handleParse(e.target.value);
+                }}
+                placeholder="What happened with your money?"
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              />
+              <button
+                onClick={() => input && handleParse(input)}
+                className="rounded-xl bg-gray-900 px-4 text-white hover:bg-gray-800"
+              >
+                <Send size={18} />
+              </button>
+            </div>
+          </>}
 
           {/* Parsed preview */}
           {parsed && (
@@ -196,15 +205,15 @@ export function QuickAddModal({ open, onClose, onConfirm }: Props) {
                 >
                   {TYPE_LABELS[parsed.type]}
                 </span>
-                <button
+                {!initialType && <button
                   onClick={() => setEditing(!editing)}
                   className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
                 >
                   <Pencil size={12} /> Edit
-                </button>
+                </button>}
               </div>
 
-              {editing ? (
+              {editing || initialType ? (
                 <EditablePreview
                   parsed={parsed}
                   onChange={setParsed}
@@ -226,13 +235,13 @@ export function QuickAddModal({ open, onClose, onConfirm }: Props) {
                 disabled={parsed.amount <= 0}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40"
               >
-                <Check size={18} /> Confirm
+                <Check size={18} /> {initialType ? `Add ${initialType === 'expense' ? 'Expense' : 'Income'}` : 'Confirm'}
               </button>
             </div>
           )}
 
           {/* Examples */}
-          {!parsed && (
+          {!parsed && !initialType && (
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-400">Try saying:</p>
               {[

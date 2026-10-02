@@ -1,33 +1,32 @@
-import type { Transaction, RecurringPayment, Investment, Goal, Debt, SafeToSpendBreakdown, Insight, Profile } from './types';
+import type { Transaction, RecurringPayment, Investment, Goal, SafeToSpendBreakdown, Insight, Profile } from './types';
 import { formatCurrency, daysBetween } from './format';
+
+function monthKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function transactionIsInMonth(transaction: Transaction, date: Date): boolean {
+  return transaction.date.slice(0, 7) === monthKey(date);
+}
 
 export function getIncomeForMonth(transactions: Transaction[], refDate: Date): number {
   return transactions
     .filter(t => t.type === 'income')
-    .filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth() === refDate.getMonth() && d.getFullYear() === refDate.getFullYear();
-    })
+    .filter(t => transactionIsInMonth(t, refDate))
     .reduce((sum, t) => sum + t.amount, 0);
 }
 
 export function getExpensesForMonth(transactions: Transaction[], refDate: Date): number {
   return transactions
     .filter(t => t.type === 'expense')
-    .filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth() === refDate.getMonth() && d.getFullYear() === refDate.getFullYear();
-    })
+    .filter(t => transactionIsInMonth(t, refDate))
     .reduce((sum, t) => sum + t.amount, 0);
 }
 
 export function getInvestmentsForMonth(transactions: Transaction[], refDate: Date): number {
   return transactions
     .filter(t => t.type === 'investment')
-    .filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth() === refDate.getMonth() && d.getFullYear() === refDate.getFullYear();
-    })
+    .filter(t => transactionIsInMonth(t, refDate))
     .reduce((sum, t) => sum + t.amount, 0);
 }
 
@@ -105,18 +104,16 @@ export function generateInsights(
 ): Insight[] {
   const insights: Insight[] = [];
   const now = new Date();
-  const thisMonth = { month: now.getMonth(), year: now.getFullYear() };
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonth = { month: lastMonthDate.getMonth(), year: lastMonthDate.getFullYear() };
 
   // Food spending comparison
   const foodThisMonth = transactions
     .filter(t => t.type === 'expense' && t.category === 'Food')
-    .filter(t => { const d = new Date(t.date); return d.getMonth() === thisMonth.month && d.getFullYear() === thisMonth.year; })
+    .filter(t => transactionIsInMonth(t, now))
     .reduce((s, t) => s + t.amount, 0);
   const foodLastMonth = transactions
     .filter(t => t.type === 'expense' && t.category === 'Food')
-    .filter(t => { const d = new Date(t.date); return d.getMonth() === lastMonth.month && d.getFullYear() === lastMonth.year; })
+    .filter(t => transactionIsInMonth(t, lastMonthDate))
     .reduce((s, t) => s + t.amount, 0);
   if (foodLastMonth > 0) {
     const pct = Math.round(((foodThisMonth - foodLastMonth) / foodLastMonth) * 100);

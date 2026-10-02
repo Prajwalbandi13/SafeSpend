@@ -8,16 +8,15 @@ import { BudgetScreen } from './screens/Budget';
 import { InvestmentsScreen } from './screens/Investments';
 import { MoreScreen } from './screens/More';
 import { useAllData, useProfile } from './lib/hooks';
-import { initIfNeeded } from './lib/storage';
 
 export default function App() {
   const ready = useAllData();
-  const { profile, update } = useProfile();
+  const { profile, update, refresh } = useProfile();
   const [tab, setTab] = useState<TabId>('home');
 
   useEffect(() => {
-    initIfNeeded();
-  }, []);
+    if (ready) refresh();
+  }, [ready, refresh]);
 
   if (!ready) {
     return (

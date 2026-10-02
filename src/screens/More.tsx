@@ -100,9 +100,8 @@ function AskMoney({ onBack, transactions, recurring, investments, goals, debts, 
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-              m.role === 'user' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-900'
-            }`}>
+            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${m.role === 'user' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-900'
+              }`}>
               {m.text}
             </div>
           </div>
@@ -150,7 +149,7 @@ function Privacy({ onBack, onReset, resetConfirm, setResetConfirm }: any) {
             <h2 className="text-sm font-bold text-gray-900">Your data is private</h2>
           </div>
           <p className="text-sm text-gray-500">
-            All your financial data is stored locally on your device. We don't connect to your bank accounts, 
+            All your financial data is stored locally on your device. We don't connect to your bank accounts,
             and nothing is sent to any server.
           </p>
         </div>
@@ -170,7 +169,7 @@ function Privacy({ onBack, onReset, resetConfirm, setResetConfirm }: any) {
         <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
           <h2 className="mb-2 text-sm font-bold text-red-900">Danger zone</h2>
           <p className="mb-3 text-sm text-red-700">
-            This will permanently delete all your data and reset the app to demo mode.
+            This will permanently delete all your data and reset the app to a blank account.
           </p>
           {!resetConfirm ? (
             <button onClick={() => setResetConfirm(true)} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100">

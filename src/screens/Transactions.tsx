@@ -23,10 +23,18 @@ export function TransactionsScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  const selectedMonth = new Date();
+  selectedMonth.setDate(1);
+  selectedMonth.setMonth(selectedMonth.getMonth() + monthOffset);
+  const selectedMonthKey = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`;
+  const selectedMonthLabel = selectedMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
   const filtered = useMemo(() => {
     return transactions
       .filter(t => {
+        if (t.date.slice(0, 7) !== selectedMonthKey) return false;
         if (typeFilter !== 'all' && t.type !== typeFilter) return false;
         if (search) {
           const q = search.toLowerCase();
@@ -38,7 +46,7 @@ export function TransactionsScreen() {
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, typeFilter, search]);
+  }, [transactions, typeFilter, search, selectedMonthKey]);
 
   // Group by date
   const grouped = useMemo(() => {
@@ -74,6 +82,19 @@ export function TransactionsScreen() {
         </button>
       </div>
 
+      <div className="mb-4 flex items-center justify-between rounded-xl bg-white px-3 py-2 shadow-sm">
+        <div className="text-center">
+          <p className="text-sm font-semibold text-gray-900">{selectedMonthLabel}</p>
+          <p className="text-xs text-gray-400">{monthOffset === 0 ? 'This month' : 'Last month'}</p>
+        </div>
+        <button
+          onClick={() => setMonthOffset(monthOffset === 0 ? -1 : 0)}
+          className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+        >
+          {monthOffset === 0 ? 'View last month' : 'Back to this month'}
+        </button>
+      </div>
+
       {/* Search */}
       <div className="relative mb-3">
         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -100,11 +121,10 @@ export function TransactionsScreen() {
             <button
               key={f.value}
               onClick={() => setTypeFilter(f.value)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                typeFilter === f.value
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${typeFilter === f.value
                   ? 'bg-emerald-500 text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {f.label}
             </button>
@@ -130,6 +150,11 @@ export function TransactionsScreen() {
                     key={t.id}
                     txn={t}
                     onClick={() => setEditing(t)}
+                    onDelete={() => {
+                      if (window.confirm(`Delete “${t.description}”? This cannot be undone.`)) {
+                        remove(t.id);
+                      }
+                    }}
                   />
                 ))}
               </div>

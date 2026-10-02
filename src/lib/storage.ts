@@ -6,7 +6,6 @@ import type {
   Goal,
   Debt,
 } from './types';
-import { seedDemoData } from './seedData';
 
 const KEYS = {
   profile: 'pf_profile',
@@ -17,6 +16,7 @@ const KEYS = {
   debts: 'pf_debts',
   initialized: 'pf_initialized',
 };
+const FRESH_START_KEY = 'pf_fresh_start_v1';
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -37,14 +37,18 @@ export function isInitialized(): boolean {
 }
 
 export function initIfNeeded(): void {
+  if (localStorage.getItem(FRESH_START_KEY) !== 'true') {
+    Object.values(KEYS).forEach(key => localStorage.removeItem(key));
+    localStorage.setItem(FRESH_START_KEY, 'true');
+  }
+
   if (!isInitialized()) {
-    const demo = seedDemoData();
-    write(KEYS.profile, demo.profile);
-    write(KEYS.transactions, demo.transactions);
-    write(KEYS.recurring, demo.recurring);
-    write(KEYS.investments, demo.investments);
-    write(KEYS.goals, demo.goals);
-    write(KEYS.debts, demo.debts);
+    write(KEYS.profile, defaultProfile());
+    write(KEYS.transactions, []);
+    write(KEYS.recurring, []);
+    write(KEYS.investments, []);
+    write(KEYS.goals, []);
+    write(KEYS.debts, []);
     localStorage.setItem(KEYS.initialized, 'true');
   }
 }

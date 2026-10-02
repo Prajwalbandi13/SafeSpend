@@ -9,7 +9,7 @@ import {
   getInvestmentsForMonth,
   generateInsights,
 } from '../lib/finance';
-import { formatCurrency, getGreeting, formatMonthYear, daysBetween } from '../lib/format';
+import { formatCurrency, getGreeting, formatMonthYear } from '../lib/format';
 import type { ParsedTransaction } from '../lib/types';
 
 const INSIGHT_ICONS: Record<string, typeof Lightbulb> = {
@@ -27,10 +27,13 @@ export function HomeScreen() {
   const { investments } = useInvestments();
   const { goals } = useGoals();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | undefined>();
   const [showBreakdown, setShowBreakdown] = useState(false);
 
   const now = new Date();
-  const breakdown = calculateSafeToSpend(transactions, recurring, investments, goals, profile);
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthTransactions = transactions.filter(t => t.date.slice(0, 7) === monthKey);
+  const breakdown = calculateSafeToSpend(monthTransactions, recurring, investments, goals, profile);
   const income = getIncomeForMonth(transactions, now);
   const expenses = getExpensesForMonth(transactions, now);
   const invested = getInvestmentsForMonth(transactions, now);
@@ -95,7 +98,10 @@ export function HomeScreen() {
 
       {/* Quick add button */}
       <button
-        onClick={() => setQuickAddOpen(true)}
+        onClick={() => {
+          setQuickAddType(undefined);
+          setQuickAddOpen(true);
+        }}
         className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gray-900 py-4 text-white shadow-lg active:scale-[0.98] transition-transform"
       >
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500">
@@ -106,6 +112,27 @@ export function HomeScreen() {
           <p className="text-xs text-gray-400">Tap to speak or type</p>
         </div>
       </button>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => {
+            setQuickAddType('expense');
+            setQuickAddOpen(true);
+          }}
+          className="flex items-center justify-center gap-2 rounded-xl border border-red-100 bg-white py-3 text-sm font-semibold text-red-600 shadow-sm active:scale-[0.98]"
+        >
+          <TrendingDown size={18} /> Add expense
+        </button>
+        <button
+          onClick={() => {
+            setQuickAddType('income');
+            setQuickAddOpen(true);
+          }}
+          className="flex items-center justify-center gap-2 rounded-xl border border-emerald-100 bg-white py-3 text-sm font-semibold text-emerald-600 shadow-sm active:scale-[0.98]"
+        >
+          <TrendingUp size={18} /> Add income
+        </button>
+      </div>
 
       {/* Privacy note */}
       <div className="rounded-xl bg-gray-50 p-3 text-center">
@@ -132,7 +159,11 @@ export function HomeScreen() {
 
       <QuickAddModal
         open={quickAddOpen}
-        onClose={() => setQuickAddOpen(false)}
+        initialType={quickAddType}
+        onClose={() => {
+          setQuickAddOpen(false);
+          setQuickAddType(undefined);
+        }}
         onConfirm={handleQuickAdd}
       />
     </div>
