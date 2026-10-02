@@ -1,0 +1,24 @@
+{
+  "name": "SafeSpend — Know what you can spend",
+  "short_name": "SafeSpend",
+  "description": "Tell the app what happened with your money, and it tells you what you can safely spend, save, and invest.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9fafb",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
