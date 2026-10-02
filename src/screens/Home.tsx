@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mic, ChevronDown, ChevronUp, Lightbulb, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { Mic, Eye, EyeOff, ChevronDown, ChevronUp, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 import { QuickAddModal } from '../components/QuickAddModal';
 import { useProfile, useTransactions, useRecurring, useInvestments, useGoals } from '../lib/hooks';
 import {
@@ -16,8 +16,6 @@ const INSIGHT_ICONS: Record<string, typeof Lightbulb> = {
   utensils: Lightbulb,
   'trending-up': TrendingUp,
   repeat: TrendingUp,
-  wallet: Wallet,
-  'hand-coins': Wallet,
 };
 
 export function HomeScreen() {
@@ -29,6 +27,7 @@ export function HomeScreen() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | undefined>();
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [amountsVisible, setAmountsVisible] = useState(false);
 
   const now = new Date();
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -37,7 +36,7 @@ export function HomeScreen() {
   const income = getIncomeForMonth(transactions, now);
   const expenses = getExpensesForMonth(transactions, now);
   const invested = getInvestmentsForMonth(transactions, now);
-  const insights = generateInsights(transactions, recurring, investments, goals, profile, breakdown.safeToSpend);
+  const insights = generateInsights(transactions, recurring, investments);
 
   const handleQuickAdd = (parsed: ParsedTransaction) => {
     add({
@@ -52,13 +51,24 @@ export function HomeScreen() {
   };
 
   return (
-    <div className="space-y-6 px-5 pb-28 pt-8 md:pb-8">
+    <div className="space-y-6 px-5 pb-28 pt-14 md:pb-8 md:pt-10">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">
-          {getGreeting()}, {profile.name} 👋
-        </h1>
-        <p className="text-sm text-gray-400">{formatMonthYear(now)}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">
+            {getGreeting()}, {profile.name} 👋
+          </h1>
+          <p className="text-sm text-gray-400">{formatMonthYear(now)}</p>
+        </div>
+        <button
+          type="button"
+          aria-label={amountsVisible ? 'Hide financial amounts' : 'Show financial amounts'}
+          title={amountsVisible ? 'Hide amounts' : 'Show amounts'}
+          onClick={() => setAmountsVisible(visible => !visible)}
+          className="rounded-xl bg-white p-2.5 text-gray-500 shadow-sm hover:bg-gray-100"
+        >
+          {amountsVisible ? <EyeOff size={20} /> : <Eye size={20} />}
+        </button>
       </div>
 
       {/* Safe to Spend hero */}
@@ -67,7 +77,7 @@ export function HomeScreen() {
       >
         <p className="text-sm font-medium text-emerald-50">Available to spend</p>
         <p className="mt-1 text-4xl font-bold tracking-tight">
-          {formatCurrency(breakdown.safeToSpend)}
+          {amountsVisible ? formatCurrency(breakdown.safeToSpend) : '••••••'}
         </p>
         <button
           onClick={() => setShowBreakdown(!showBreakdown)}
@@ -79,21 +89,21 @@ export function HomeScreen() {
 
         {showBreakdown && (
           <div className="mt-3 space-y-1.5 rounded-2xl bg-white/10 p-4 text-sm">
-            <Row label="Current balance" value={formatCurrency(breakdown.currentMoney)} />
-            <Row label="Upcoming commitments" value={`-${formatCurrency(breakdown.upcomingCommitments)}`} />
-            <Row label="Upcoming SIPs" value={`-${formatCurrency(breakdown.upcomingSIPs)}`} />
-            <Row label="Goal allocation" value={`-${formatCurrency(breakdown.goalAllocation)}`} />
+            <Row label="Current balance" value={amountsVisible ? formatCurrency(breakdown.currentMoney) : '••••••'} />
+            <Row label="Upcoming commitments" value={amountsVisible ? `-${formatCurrency(breakdown.upcomingCommitments)}` : '••••••'} />
+            <Row label="Upcoming SIPs" value={amountsVisible ? `-${formatCurrency(breakdown.upcomingSIPs)}` : '••••••'} />
+            <Row label="Goal allocation" value={amountsVisible ? `-${formatCurrency(breakdown.goalAllocation)}` : '••••••'} />
             <div className="my-1 border-t border-white/20" />
-            <Row label="Safe to spend" value={formatCurrency(breakdown.safeToSpend)} bold />
+            <Row label="Safe to spend" value={amountsVisible ? formatCurrency(breakdown.safeToSpend) : '••••••'} bold />
           </div>
         )}
       </div>
 
       {/* Income / Expenses / Investments summary */}
       <div className="grid grid-cols-3 gap-3">
-        <SummaryCard label="Income" value={formatCurrency(income)} color="text-emerald-600" />
-        <SummaryCard label="Expenses" value={formatCurrency(expenses)} color="text-gray-900" />
-        <SummaryCard label="Invested" value={formatCurrency(invested)} color="text-blue-600" />
+        <SummaryCard label="Income" value={amountsVisible ? formatCurrency(income) : '••••••'} color="text-emerald-600" />
+        <SummaryCard label="Expenses" value={amountsVisible ? formatCurrency(expenses) : '••••••'} color="text-gray-900" />
+        <SummaryCard label="Invested" value={amountsVisible ? formatCurrency(invested) : '••••••'} color="text-blue-600" />
       </div>
 
       {/* Quick add button */}

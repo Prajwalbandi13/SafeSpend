@@ -13,10 +13,16 @@ export default function App() {
   const ready = useAllData();
   const { profile, update, refresh } = useProfile();
   const [tab, setTab] = useState<TabId>('home');
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('safespend_theme') === 'dark');
 
   useEffect(() => {
     if (ready) refresh();
   }, [ready, refresh]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('safespend_theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   if (!ready) {
     return (
@@ -35,14 +41,14 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors">
       <SideNav active={tab} onChange={setTab} />
       <main className="mx-auto max-w-md md:ml-60 md:max-w-2xl">
         {tab === 'home' && <HomeScreen />}
         {tab === 'transactions' && <TransactionsScreen />}
         {tab === 'budget' && <BudgetScreen />}
         {tab === 'investments' && <InvestmentsScreen />}
-        {tab === 'more' && <MoreScreen />}
+        {tab === 'more' && <MoreScreen darkMode={darkMode} onToggleDarkMode={() => setDarkMode(mode => !mode)} />}
       </main>
       <BottomNav active={tab} onChange={setTab} />
     </div>

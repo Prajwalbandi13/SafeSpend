@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Shield, User, MessageCircle, Trash2, RotateCcw } from 'lucide-react';
+import { Send, Shield, User, MessageCircle, Trash2, RotateCcw, Sun, Moon } from 'lucide-react';
 import { useProfile, useTransactions, useRecurring, useInvestments, useGoals, useDebts } from '../lib/hooks';
 import { answerQuery } from '../lib/askMoney';
 import { resetAllData } from '../lib/storage';
 import type { Profile, SalaryFrequency } from '../lib/types';
 
-export function MoreScreen() {
+export function MoreScreen({ darkMode, onToggleDarkMode }: { darkMode: boolean; onToggleDarkMode: () => void }) {
   const { profile, update } = useProfile();
   const { transactions } = useTransactions();
   const { recurring } = useRecurring();
@@ -32,6 +32,7 @@ export function MoreScreen() {
       <h1 className="mb-6 text-xl font-bold text-gray-900">More</h1>
 
       <div className="space-y-2">
+        <MenuButton icon={darkMode ? Sun : Moon} label={darkMode ? 'Switch to bright mode' : 'Switch to dark mode'} desc="Change the app appearance" onClick={onToggleDarkMode} />
         <MenuButton icon={MessageCircle} label="Ask Your Money" desc="Ask questions about your finances" onClick={() => setSection('ask')} />
         <MenuButton icon={User} label="Profile & Settings" desc="Name, income, salary details" onClick={() => setSection('profile')} />
         <MenuButton icon={Shield} label="Privacy" desc="Your data stays on your device" onClick={() => setSection('privacy')} />

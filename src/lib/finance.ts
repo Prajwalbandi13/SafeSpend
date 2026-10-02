@@ -97,10 +97,7 @@ export function calculateSafeToSpend(
 export function generateInsights(
   transactions: Transaction[],
   recurring: RecurringPayment[],
-  investments: Investment[],
-  goals: Goal[],
-  profile: Profile,
-  safeToSpend: number
+  investments: Investment[]
 ): Insight[] {
   const insights: Insight[] = [];
   const now = new Date();
@@ -134,11 +131,6 @@ export function generateInsights(
     .reduce((s, r) => s + r.amount, 0);
   if (monthlyRecurring > 0) {
     insights.push({ icon: 'repeat', text: `Your recurring commitments are ${formatCurrency(monthlyRecurring)}/month.` });
-  }
-
-  // Safe to spend
-  if (safeToSpend > 0) {
-    insights.push({ icon: 'wallet', text: `You have ${formatCurrency(safeToSpend)} available to spend before your next salary.` });
   }
 
   // Debts owed

@@ -21,6 +21,64 @@
   }
 }
 
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body,
+html.dark .bg-gray-50 {
+  background-color: #0b1220 !important;
+}
+
+html.dark .bg-white,
+html.dark .bg-gray-100 {
+  background-color: #151f2e !important;
+}
+
+html.dark .bg-gray-900 {
+  background-color: #243247 !important;
+}
+
+html.dark .bg-emerald-50,
+html.dark .bg-red-50,
+html.dark .bg-amber-50,
+html.dark .bg-blue-50 {
+  background-color: #1d2b36 !important;
+}
+
+html.dark .text-gray-900 {
+  color: #f3f4f6 !important;
+}
+
+html.dark .text-gray-600,
+html.dark .text-gray-500 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-gray-400,
+html.dark .text-gray-300 {
+  color: #94a3b8 !important;
+}
+
+html.dark .border-gray-100,
+html.dark .border-gray-200 {
+  border-color: #293548 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  color-scheme: dark;
+  background-color: #151f2e;
+  color: #f3f4f6;
+  border-color: #374151;
+}
+
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover {
+  background-color: #1e293b !important;
+}
+
 @layer utilities {
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
