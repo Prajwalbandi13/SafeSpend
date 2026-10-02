@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Mic, Send, Check, Pencil, Trash2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { SpeechRecognition } from '@capacitor-community/speech-recognition';
+import { Mic, Send, Check, Pencil } from 'lucide-react';
 import { Modal } from './Modal';
 import { parseTransaction } from '../lib/nlp';
-import { formatCurrency, todayISO } from '../lib/format';
+import { formatCurrency } from '../lib/format';
 import type { ParsedTransaction, TransactionType } from '../lib/types';
 
 interface Props {
@@ -31,6 +33,7 @@ export function QuickAddModal({ open, onClose, onConfirm }: Props) {
   const [input, setInput] = useState('');
   const [parsed, setParsed] = useState<ParsedTransaction | null>(null);
   const [listening, setListening] = useState(false);
+  const [voiceError, setVoiceError] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [editing, setEditing] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -53,14 +56,53 @@ export function QuickAddModal({ open, onClose, onConfirm }: Props) {
     setParsed(parseTransaction(text));
   };
 
-  const startListening = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setInput('Voice input is not supported in this browser. Please type instead.');
+  const startListening = async () => {
+    setVoiceError('');
+
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        const { available } = await SpeechRecognition.available();
+        if (!available) {
+          setVoiceError('Speech recognition is unavailable. Check that a speech service is installed on your device.');
+          return;
+        }
+
+        let permission = await SpeechRecognition.checkPermissions();
+        if (permission.speechRecognition !== 'granted') {
+          permission = await SpeechRecognition.requestPermissions();
+        }
+        if (permission.speechRecognition !== 'granted') {
+          setVoiceError('Microphone permission is needed for voice input. Enable it in your phone settings.');
+          return;
+        }
+
+        setListening(true);
+        const result = await SpeechRecognition.start({
+          language: 'en-IN',
+          maxResults: 1,
+          prompt: 'Tell me what happened with your money',
+          popup: true,
+        });
+        const transcript = result.matches?.[0]?.trim();
+        if (transcript) {
+          setInput(transcript);
+          handleParse(transcript);
+        }
+      } catch (error) {
+        setVoiceError(error instanceof Error ? error.message : 'Could not start speech recognition. Please try again.');
+      } finally {
+        setListening(false);
+      }
       return;
     }
-    const recognition = new SpeechRecognition();
+
+    const BrowserSpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!BrowserSpeechRecognition) {
+      setVoiceError('Voice input is not supported here. Please type instead.');
+      return;
+    }
+    const recognition = new BrowserSpeechRecognition();
     recognition.lang = 'en-IN';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
@@ -68,7 +110,11 @@ export function QuickAddModal({ open, onClose, onConfirm }: Props) {
 
     recognition.onstart = () => setListening(true);
     recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
+    recognition.onerror = (event: Event) => {
+      setListening(false);
+      const recognitionError = event as Event & { error?: string };
+      setVoiceError(`Voice input failed (${recognitionError.error ?? 'unknown error'}). Please try again or type instead.`);
+    };
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       const transcript = event.results[0][0].transcript;
       setInput(transcript);
@@ -78,6 +124,11 @@ export function QuickAddModal({ open, onClose, onConfirm }: Props) {
   };
 
   const stopListening = () => {
+    if (Capacitor.getPlatform() === 'android') {
+      void SpeechRecognition.stop().catch(() => undefined);
+      setListening(false);
+      return;
+    }
     recognitionRef.current?.stop();
     setListening(false);
   };
@@ -99,17 +150,21 @@ export function QuickAddModal({ open, onClose, onConfirm }: Props) {
           <div className="flex flex-col items-center py-4">
             <button
               onClick={listening ? stopListening : startListening}
-              className={`flex h-20 w-20 items-center justify-center rounded-full transition-all ${
-                listening
-                  ? 'bg-red-500 text-white animate-pulse scale-110'
-                  : 'bg-emerald-500 text-white hover:bg-emerald-600 active:scale-105'
-              }`}
+              className={`flex h-20 w-20 items-center justify-center rounded-full transition-all ${listening
+                ? 'bg-red-500 text-white animate-pulse scale-110'
+                : 'bg-emerald-500 text-white hover:bg-emerald-600 active:scale-105'
+                }`}
             >
               <Mic size={32} />
             </button>
             <p className="mt-3 text-sm text-gray-500">
               {listening ? 'Listening...' : 'Tap to speak'}
             </p>
+            {voiceError && (
+              <p role="alert" className="mt-2 max-w-xs text-center text-xs text-red-600">
+                {voiceError}
+              </p>
+            )}
           </div>
 
           {/* Text input */}
