@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Shield, User, MessageCircle, Trash2, RotateCcw, Sun, Moon } from 'lucide-react';
+import { Send, Shield, User, MessageCircle, Trash2, RotateCcw, Sun, Moon, FileSpreadsheet, Download, Upload } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import type { LucideIcon } from 'lucide-react';
 import { useProfile, useTransactions, useRecurring, useInvestments, useGoals, useDebts } from '../lib/hooks';
 import { answerQuery } from '../lib/askMoney';
 import { resetAllData } from '../lib/storage';
-import type { Profile, SalaryFrequency } from '../lib/types';
+import type { Debt, Goal, Investment, Profile, RecurringPayment, SalaryFrequency, Transaction } from '../lib/types';
 
 export function MoreScreen({ darkMode, onToggleDarkMode }: { darkMode: boolean; onToggleDarkMode: () => void }) {
   const { profile, update } = useProfile();
@@ -12,7 +16,7 @@ export function MoreScreen({ darkMode, onToggleDarkMode }: { darkMode: boolean; 
   const { investments } = useInvestments();
   const { goals } = useGoals();
   const { debts } = useDebts();
-  const [section, setSection] = useState<'menu' | 'ask' | 'privacy' | 'profile'>('menu');
+  const [section, setSection] = useState<'menu' | 'ask' | 'privacy' | 'profile' | 'backup'>('menu');
   const [resetConfirm, setResetConfirm] = useState(false);
 
   if (section === 'ask') {
@@ -27,12 +31,17 @@ export function MoreScreen({ darkMode, onToggleDarkMode }: { darkMode: boolean; 
     return <ProfileSettings profile={profile} onUpdate={update} onBack={() => setSection('menu')} />;
   }
 
+  if (section === 'backup') {
+    return <BackupRestore onBack={() => setSection('menu')} />;
+  }
+
   return (
     <div className="px-5 pb-28 pt-8 md:pb-8">
       <h1 className="mb-6 text-xl font-bold text-gray-900">More</h1>
 
       <div className="space-y-2">
         <MenuButton icon={darkMode ? Sun : Moon} label={darkMode ? 'Switch to bright mode' : 'Switch to dark mode'} desc="Change the app appearance" onClick={onToggleDarkMode} />
+        <MenuButton icon={FileSpreadsheet} label="Excel backup" desc="Export or restore your app data" onClick={() => setSection('backup')} />
         <MenuButton icon={MessageCircle} label="Ask Your Money" desc="Ask questions about your finances" onClick={() => setSection('ask')} />
         <MenuButton icon={User} label="Profile & Settings" desc="Name, income, salary details" onClick={() => setSection('profile')} />
         <MenuButton icon={Shield} label="Privacy" desc="Your data stays on your device" onClick={() => setSection('privacy')} />
@@ -46,7 +55,117 @@ export function MoreScreen({ darkMode, onToggleDarkMode }: { darkMode: boolean; 
   );
 }
 
-function MenuButton({ icon: Icon, label, desc, onClick }: { icon: any; label: string; desc: string; onClick: () => void }) {
+function BackupRestore({ onBack }: { onBack: () => void }) {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState(false);
+
+  const exportBackup = async () => {
+    setBusy(true);
+    setMessage('');
+    setError(false);
+    const fileName = `SafeSpend-backup-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const { encodeExcelBackup } = await import('../lib/excelBackup');
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: encodeExcelBackup(),
+          directory: Directory.Cache,
+        });
+        await Share.share({
+          title: 'SafeSpend data backup',
+          text: 'Save this Excel file somewhere safe. You can import it after reinstalling SafeSpend.',
+          url: savedFile.uri,
+          dialogTitle: 'Save or share backup',
+        });
+      } else {
+        const { downloadExcelBackup } = await import('../lib/excelBackup');
+        downloadExcelBackup(fileName);
+      }
+      setMessage('Backup exported. Store the file somewhere you can access after reinstalling.');
+    } catch (cause) {
+      setError(true);
+      setMessage(cause instanceof Error ? cause.message : 'Could not export the backup.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importBackup = async (file?: File) => {
+    if (!file) return;
+    setBusy(true);
+    setMessage('');
+    setError(false);
+    try {
+      const { parseExcelBackup, restoreExcelBackup } = await import('../lib/excelBackup');
+      const backup = parseExcelBackup(await file.arrayBuffer());
+      const transactionCount = backup.transactions.length;
+      const confirmed = window.confirm(
+        `Restore this SafeSpend backup? It contains ${transactionCount} transactions and will replace the data currently in this app.`
+      );
+      if (!confirmed) return;
+      restoreExcelBackup(backup);
+      window.location.reload();
+    } catch (cause) {
+      setError(true);
+      setMessage(cause instanceof Error ? cause.message : 'Could not import this backup.');
+    } finally {
+      setBusy(false);
+      if (fileInput.current) fileInput.current.value = '';
+    }
+  };
+
+  return (
+    <div className="px-5 pb-28 pt-8 md:pb-8">
+      <div className="mb-6 flex items-center gap-3">
+        <button onClick={onBack} className="text-sm text-gray-500">← Back</button>
+        <h1 className="text-lg font-bold text-gray-900">Excel backup</h1>
+      </div>
+      <p className="mb-5 text-sm text-gray-500">
+        Export your profile and all saved finance data to an Excel workbook. Keep the file outside the app so it is available after reinstalling.
+      </p>
+      <div className="space-y-3">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={exportBackup}
+          className="flex w-full items-center gap-4 rounded-xl border border-gray-100 bg-white p-4 text-left disabled:opacity-50"
+        >
+          <Download size={20} className="text-emerald-600" />
+          <span>
+            <span className="block text-sm font-semibold text-gray-900">Export Excel backup</span>
+            <span className="block text-xs text-gray-400">Save a copy of all app data</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => fileInput.current?.click()}
+          className="flex w-full items-center gap-4 rounded-xl border border-gray-100 bg-white p-4 text-left disabled:opacity-50"
+        >
+          <Upload size={20} className="text-emerald-600" />
+          <span>
+            <span className="block text-sm font-semibold text-gray-900">Import Excel backup</span>
+            <span className="block text-xs text-gray-400">Restore data from a SafeSpend backup</span>
+          </span>
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          onChange={event => void importBackup(event.target.files?.[0])}
+        />
+      </div>
+      {message && <p role="status" className={`mt-4 text-sm ${error ? 'text-red-600' : 'text-emerald-700'}`}>{message}</p>}
+      <p className="mt-5 text-xs text-gray-400">Import replaces existing app data after confirmation. Store exported backups securely because they contain your financial information.</p>
+    </div>
+  );
+}
+
+function MenuButton({ icon: Icon, label, desc, onClick }: { icon: LucideIcon; label: string; desc: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className="flex w-full items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 text-left hover:border-gray-200">
       <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50">
@@ -60,7 +179,23 @@ function MenuButton({ icon: Icon, label, desc, onClick }: { icon: any; label: st
   );
 }
 
-function AskMoney({ onBack, transactions, recurring, investments, goals, debts, profile }: any) {
+function AskMoney({
+  onBack,
+  transactions,
+  recurring,
+  investments,
+  goals,
+  debts,
+  profile,
+}: {
+  onBack: () => void;
+  transactions: Transaction[];
+  recurring: RecurringPayment[];
+  investments: Investment[];
+  goals: Goal[];
+  debts: Debt[];
+  profile: Profile;
+}) {
   const [messages, setMessages] = useState<{ role: 'user' | 'bot'; text: string }[]>([
     { role: 'bot', text: 'Hi! Ask me anything about your money. Try "How much did I spend on food this month?"' },
   ]);
@@ -135,7 +270,12 @@ function AskMoney({ onBack, transactions, recurring, investments, goals, debts, 
   );
 }
 
-function Privacy({ onBack, onReset, resetConfirm, setResetConfirm }: any) {
+function Privacy({ onBack, onReset, resetConfirm, setResetConfirm }: {
+  onBack: () => void;
+  onReset: () => void;
+  resetConfirm: boolean;
+  setResetConfirm: (confirm: boolean) => void;
+}) {
   return (
     <div className="px-5 pb-28 pt-8 md:pb-8">
       <div className="mb-6 flex items-center gap-3">
