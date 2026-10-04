@@ -4,7 +4,7 @@ import { TransactionItem } from '../components/TransactionItem';
 import { TransactionEditModal } from '../components/TransactionEditModal';
 import { QuickAddModal } from '../components/QuickAddModal';
 import { useTransactions } from '../lib/hooks';
-import { formatDate } from '../lib/format';
+import { formatCurrency, formatDate } from '../lib/format';
 import type { Transaction, TransactionType, ParsedTransaction } from '../lib/types';
 
 const TYPE_FILTERS: { value: TransactionType | 'all'; label: string }[] = [
@@ -23,13 +23,18 @@ export function TransactionsScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const [monthOffset, setMonthOffset] = useState(0);
+  const [selectedMonthKey, setSelectedMonthKey] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  });
 
-  const selectedMonth = new Date();
-  selectedMonth.setDate(1);
-  selectedMonth.setMonth(selectedMonth.getMonth() + monthOffset);
-  const selectedMonthKey = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`;
-  const selectedMonthLabel = selectedMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  const monthOptions = useMemo(() => {
+    const currentMonth = new Date();
+    const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+    return [...new Set([currentMonthKey, ...transactions.map(t => t.date.slice(0, 7))])]
+      .filter(key => /^\d{4}-\d{2}$/.test(key))
+      .sort((a, b) => b.localeCompare(a));
+  }, [transactions]);
 
   const filtered = useMemo(() => {
     return transactions
@@ -58,6 +63,16 @@ export function TransactionsScreen() {
     return Object.entries(groups);
   }, [filtered]);
 
+  const dailyExpenseTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    transactions.forEach(transaction => {
+      if (transaction.type === 'expense' && transaction.date.slice(0, 7) === selectedMonthKey) {
+        totals[transaction.date] = (totals[transaction.date] ?? 0) + transaction.amount;
+      }
+    });
+    return totals;
+  }, [transactions, selectedMonthKey]);
+
   const handleQuickAdd = (parsed: ParsedTransaction) => {
     add({
       type: parsed.type,
@@ -83,16 +98,19 @@ export function TransactionsScreen() {
       </div>
 
       <div className="mb-4 flex items-center justify-between rounded-xl bg-white px-3 py-2 shadow-sm">
-        <div className="text-center">
-          <p className="text-sm font-semibold text-gray-900">{selectedMonthLabel}</p>
-          <p className="text-xs text-gray-400">{monthOffset === 0 ? 'This month' : 'Last month'}</p>
-        </div>
-        <button
-          onClick={() => setMonthOffset(monthOffset === 0 ? -1 : 0)}
-          className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+        <label htmlFor="transaction-month" className="text-xs font-medium text-gray-500">Month</label>
+        <select
+          id="transaction-month"
+          value={monthOptions.includes(selectedMonthKey) ? selectedMonthKey : monthOptions[0]}
+          onChange={event => setSelectedMonthKey(event.target.value)}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 outline-none focus:border-emerald-400"
         >
-          {monthOffset === 0 ? 'View last month' : 'Back to this month'}
-        </button>
+          {monthOptions.map(monthKey => (
+            <option key={monthKey} value={monthKey}>
+              {new Date(`${monthKey}-01T12:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Search */}
@@ -122,8 +140,8 @@ export function TransactionsScreen() {
               key={f.value}
               onClick={() => setTypeFilter(f.value)}
               className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${typeFilter === f.value
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
             >
               {f.label}
@@ -141,9 +159,16 @@ export function TransactionsScreen() {
         <div className="space-y-5">
           {grouped.map(([date, txns]) => (
             <div key={date}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                {formatDate(date)}
-              </p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  {formatDate(date)}
+                </p>
+                {(dailyExpenseTotals[date] ?? 0) > 0 && (
+                  <p className="text-xs font-semibold text-red-600">
+                    Expenses {formatCurrency(dailyExpenseTotals[date])}
+                  </p>
+                )}
+              </div>
               <div className="space-y-1">
                 {txns.map(t => (
                   <TransactionItem

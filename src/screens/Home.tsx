@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mic, Eye, EyeOff, ChevronDown, ChevronUp, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
+import { Mic, Eye, EyeOff, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 import { QuickAddModal } from '../components/QuickAddModal';
 import { useProfile, useTransactions, useRecurring, useInvestments, useGoals } from '../lib/hooks';
 import {
@@ -26,8 +26,8 @@ export function HomeScreen() {
   const { goals } = useGoals();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | undefined>();
-  const [showBreakdown, setShowBreakdown] = useState(false);
   const [amountsVisible, setAmountsVisible] = useState(false);
+  const [expensesVisible, setExpensesVisible] = useState(false);
 
   const now = new Date();
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -60,49 +60,45 @@ export function HomeScreen() {
           </h1>
           <p className="text-sm text-gray-400">{formatMonthYear(now)}</p>
         </div>
-        <button
-          type="button"
-          aria-label={amountsVisible ? 'Hide financial amounts' : 'Show financial amounts'}
-          title={amountsVisible ? 'Hide amounts' : 'Show amounts'}
-          onClick={() => setAmountsVisible(visible => !visible)}
-          className="rounded-xl bg-white p-2.5 text-gray-500 shadow-sm hover:bg-gray-100"
-        >
-          {amountsVisible ? <EyeOff size={20} /> : <Eye size={20} />}
-        </button>
       </div>
 
-      {/* Safe to Spend hero */}
+      {/* Monthly expenses hero */}
       <div
         className="rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg shadow-emerald-200/50"
       >
-        <p className="text-sm font-medium text-emerald-50">Available to spend</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-emerald-50">Expenses this month</p>
+          <button
+            type="button"
+            aria-label={expensesVisible ? 'Hide expenses' : 'Show expenses'}
+            title={expensesVisible ? 'Hide expenses' : 'Show expenses'}
+            onClick={() => setExpensesVisible(visible => !visible)}
+            className="rounded-lg p-2 text-emerald-50 hover:bg-white/10 hover:text-white"
+          >
+            {expensesVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
         <p className="mt-1 text-4xl font-bold tracking-tight">
-          {amountsVisible ? formatCurrency(breakdown.safeToSpend) : '••••••'}
+          {expensesVisible ? formatCurrency(expenses) : '••••••'}
         </p>
-        <button
-          onClick={() => setShowBreakdown(!showBreakdown)}
-          className="mt-3 flex items-center gap-1 text-xs text-emerald-50/80 hover:text-white"
-        >
-          {showBreakdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          How we calculated this
-        </button>
-
-        {showBreakdown && (
-          <div className="mt-3 space-y-1.5 rounded-2xl bg-white/10 p-4 text-sm">
-            <Row label="Current balance" value={amountsVisible ? formatCurrency(breakdown.currentMoney) : '••••••'} />
-            <Row label="Upcoming commitments" value={amountsVisible ? `-${formatCurrency(breakdown.upcomingCommitments)}` : '••••••'} />
-            <Row label="Upcoming SIPs" value={amountsVisible ? `-${formatCurrency(breakdown.upcomingSIPs)}` : '••••••'} />
-            <Row label="Goal allocation" value={amountsVisible ? `-${formatCurrency(breakdown.goalAllocation)}` : '••••••'} />
-            <div className="my-1 border-t border-white/20" />
-            <Row label="Safe to spend" value={amountsVisible ? formatCurrency(breakdown.safeToSpend) : '••••••'} bold />
-          </div>
-        )}
       </div>
 
-      {/* Income / Expenses / Investments summary */}
+      {/* Protected financial summary */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-bold text-gray-900">Monthly summary</h2>
+        <button
+          type="button"
+          aria-label={amountsVisible ? 'Hide income, available to spend, and invested amounts' : 'Show income, available to spend, and invested amounts'}
+          title={amountsVisible ? 'Hide these amounts' : 'Show these amounts'}
+          onClick={() => setAmountsVisible(visible => !visible)}
+          className="rounded-xl bg-white p-2 text-gray-500 shadow-sm hover:bg-gray-100"
+        >
+          {amountsVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
       <div className="grid grid-cols-3 gap-3">
         <SummaryCard label="Income" value={amountsVisible ? formatCurrency(income) : '••••••'} color="text-emerald-600" />
-        <SummaryCard label="Expenses" value={amountsVisible ? formatCurrency(expenses) : '••••••'} color="text-gray-900" />
+        <SummaryCard label="Available to spend" value={amountsVisible ? formatCurrency(breakdown.safeToSpend) : '••••••'} color="text-gray-900" />
         <SummaryCard label="Invested" value={amountsVisible ? formatCurrency(invested) : '••••••'} color="text-blue-600" />
       </div>
 
@@ -176,15 +172,6 @@ export function HomeScreen() {
         }}
         onConfirm={handleQuickAdd}
       />
-    </div>
-  );
-}
-
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className={bold ? "font-semibold" : "text-emerald-50/80"}>{label}</span>
-      <span className={bold ? "font-bold" : ""}>{value}</span>
     </div>
   );
 }
